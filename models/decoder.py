@@ -35,14 +35,10 @@ class DecoderLayer(nn.Module):
         y = x = self.norm2(x)
         y = self.dropout(self.activation(self.conv1(y.transpose(-1, 1))))
         y = self.dropout(self.conv2(y).transpose(-1, 1))
-
-        # 分别打印 x_mask 和 cross_mask 的形状
         x_mask_shape = "None" if x_mask is None else (
             x_mask.mask.shape if isinstance(x_mask, TriangularCausalMask) else x_mask.shape)
         cross_mask_shape = "None" if cross_mask is None else (
             cross_mask.mask.shape if isinstance(cross_mask, TriangularCausalMask) else cross_mask.shape)
-        # print(f"Decoder input shape: {x.shape}, self_attn_mask: {x_mask_shape}, cross_attn_mask: {cross_mask_shape}")
-
         return self.norm3(x + y)
 
 class Decoder(nn.Module):
@@ -64,11 +60,9 @@ class Decoder(nn.Module):
         current_outputs = outputs.clone()
         final_outputs = outputs.clone()
         for t in range(extra_steps):
-            # 利用 x_mark 增强时间感知
             if x_mark is not None and self.time_projection is not None:
                 target_seq_len = current_len + (t + 1) * self.window_size
                 time_emb = self.time_projection(x_mark[:, :target_seq_len, :])
-                # 确保 time_emb 的序列长度与 current_outputs 匹配
                 if time_emb.size(1) != current_outputs.size(1):
                     if time_emb.size(1) < current_outputs.size(1):
                         padding = torch.zeros(time_emb.size(0), current_outputs.size(1) - time_emb.size(1),
@@ -82,7 +76,6 @@ class Decoder(nn.Module):
                 current_outputs = layer(current_outputs, cross, x_mask=x_mask, cross_mask=cross_mask)
 
             last_output = current_outputs[:, -self.window_size:, :].clone()
-            # 添加残差连接，减少误差累积
             if t > 0:
                 last_output = last_output + final_outputs[:, -self.window_size:, :].clone()
             final_outputs = torch.cat([final_outputs, last_output], dim=1)
