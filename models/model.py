@@ -5,7 +5,7 @@ import torch.nn.functional as F
 from utils.masking import TriangularCausalMask, ProbMask
 from models.encoder import Encoder, EncoderLayer, ConvLayer, EncoderStack
 from models.decoder import Decoder, DecoderLayer, DecoderLayerWithFlashAttention
-from models.attn import FullAttention, ProbAttention, AttentionLayer, AttentionLayerWin, AttentionLayerCrossWin
+from models.attn import FullAttention, ProbAttention, AttentionLayer, AttentionLayerWinFlash, AttentionLayerCrossWinFlash
 from models.embed import DataEmbedding
 
 class Informer(nn.Module):
@@ -113,7 +113,7 @@ class InformerStack(nn.Module):
             return dec_out[:, -self.pred_len:, :], attns
         else:
             return dec_out[:, -self.pred_len:, :]
-
+#exp
 class FWinFlash(nn.Module):
     def __init__(self, enc_in, dec_in, c_out, seq_len, label_len, out_len,
                  factor=5, d_model=512, n_heads=8, e_layers=3, d_layers=2, d_ff=512,
@@ -121,7 +121,7 @@ class FWinFlash(nn.Module):
                  output_attention=False, distil=True, mix=True,
                  device=torch.device('cuda:0'), window_size=24, num_windows=4, dwindow_size=0,
                  block_size=64, dilation=2, learned_pos=False,
-                 window_sizes=None, num_windows_list=None, time_dim=6):  # 添加 time_dim 参数
+                 window_sizes=None, num_windows_list=None, time_dim=6):
         super(FWinFlash, self).__init__()
         self.pred_len = out_len
         self.attn = attn
@@ -132,7 +132,6 @@ class FWinFlash(nn.Module):
         self.enc_embedding = DataEmbedding(enc_in, d_model, embed, freq, dropout, learned_pos=learned_pos)
         self.dec_embedding = DataEmbedding(dec_in, d_model, embed, freq, dropout, learned_pos=learned_pos)
 
-        # 编码器
         encoder_layers = nn.ModuleList()
         for l in range(e_layers):
             encoder_layers.append(EncoderLayer(
@@ -148,7 +147,6 @@ class FWinFlash(nn.Module):
             dilation=dilation
         )
 
-        # 解码器
         self.decoder = Decoder(
             [
                 DecoderLayerWithFlashAttention(
@@ -160,7 +158,7 @@ class FWinFlash(nn.Module):
             norm_layer=torch.nn.LayerNorm(d_model),
             window_size=dwindow_size,
             d_model=d_model,
-            time_dim=time_dim  # 传递 time_dim
+            time_dim=time_dim  
         )
         self.projection = nn.Linear(d_model, c_out, bias=True)
 
@@ -173,7 +171,7 @@ class FWinFlash(nn.Module):
                                pred_len=self.pred_len, x_mark=x_mark_dec)
         dec_out = self.projection(dec_out)
         return dec_out[:, -self.pred_len:, :]
-
+#exp
 class FWinFlashLite(nn.Module):
     def __init__(self, enc_in, dec_in, c_out, seq_len, label_len, out_len,
                  factor=5, d_model=512, n_heads=8, e_layers=3, d_layers=2, d_ff=512,
@@ -181,7 +179,7 @@ class FWinFlashLite(nn.Module):
                  output_attention=False, distil=True, mix=True,
                  device=torch.device('cuda:0'), window_size=24, num_windows=4, dwindow_size=0,
                  block_size=64, dilation=2, learned_pos=False,
-                 window_sizes=None, num_windows_list=None, time_dim=6):  # 添加 time_dim 参数
+                 window_sizes=None, num_windows_list=None, time_dim=6): 
         super(FWinFlashLite, self).__init__()
         self.pred_len = out_len
         self.attn = attn
@@ -192,7 +190,7 @@ class FWinFlashLite(nn.Module):
         self.enc_embedding = DataEmbedding(enc_in, d_model, embed, freq, dropout, learned_pos=learned_pos)
         self.dec_embedding = DataEmbedding(dec_in, d_model, embed, freq, dropout, learned_pos=learned_pos)
 
-        # 编码器
+       
         encoder_layers = nn.ModuleList()
         for l in range(e_layers):
             encoder_layers.append(EncoderLayer(
@@ -208,7 +206,7 @@ class FWinFlashLite(nn.Module):
             dilation=dilation
         )
 
-        # 解码器
+        
         self.decoder = Decoder(
             [
                 DecoderLayer(
