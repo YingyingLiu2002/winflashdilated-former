@@ -6,14 +6,13 @@ import torch.nn.functional as F
 class ConvLayer(nn.Module):
     def __init__(self, c_in, dilation=2, kernel_size=3):
         super(ConvLayer, self).__init__()
-        # 计算 padding 以适应 dilation，确保输出序列长度不变
         padding = dilation * (kernel_size - 1) // 2
         self.downConv = nn.Conv1d(
             in_channels=c_in,
             out_channels=c_in,
             kernel_size=kernel_size,
             padding=padding,
-            padding_mode='zeros',  # 改为 zeros 填充，减少边界效应
+            padding_mode='zeros',
             dilation=dilation
         )
         self.norm = nn.BatchNorm1d(c_in)
@@ -31,7 +30,6 @@ class EncoderLayer(nn.Module):
         super(EncoderLayer, self).__init__()
         d_ff = d_ff or 4 * d_model
         self.attention = attention
-        # 使用空洞卷积，kernel_size=3（可选）
         padding = dilation * (3 - 1) // 2
         self.conv1 = nn.Conv1d(in_channels=d_model, out_channels=d_ff, kernel_size=3,
                                padding=padding, dilation=dilation)
@@ -62,11 +60,6 @@ class Encoder(nn.Module):
         self.conv_layers = nn.ModuleList(conv_layers) if conv_layers is not None else None
         self.norm = norm_layer
         self.dilation = dilation
-        # 调试信息
-        print(f"Encoder initialized with {len(attn_layers)} attention layers, "
-              f"{len(conv_layers) if conv_layers is not None else 0} conv layers, "
-              f"dilation={dilation}")
-
     def forward(self, x, attn_mask=None):
         if self.conv_layers is not None:
             for attn_layer, conv_layer in zip(self.attn_layers, self.conv_layers):
