@@ -233,3 +233,7 @@ class FWinFlashLite(nn.Module):
                                x_mark=x_mark_dec)
         dec_out = self.projection(dec_out)
         return dec_out[:, -self.pred_len:, :]
+
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser(description='WinFlash Detailed MultiScale')
