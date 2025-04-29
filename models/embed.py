@@ -8,11 +8,9 @@ class PositionalEmbedding(nn.Module):
     def __init__(self, d_model, max_len=5000, learned=False):
         super(PositionalEmbedding, self).__init__()
         if learned:
-            # 可学习的位置嵌入
             self.pe = nn.Parameter(torch.zeros(1, max_len, d_model))
             nn.init.normal_(self.pe, mean=0, std=0.02)
         else:
-            # 固定位置编码（正弦和余弦函数）
             pe = torch.zeros(max_len, d_model).float()
             pe.requires_grad = False
 
@@ -114,7 +112,6 @@ class TimeFeatureEmbedding(nn.Module):
             '5min': 6
         }
         d_inp = freq_map[freq_simple]
-        # 使用 MLP 增强时间嵌入的表达能力
         self.embed = nn.Sequential(
             nn.Linear(d_inp, d_model // 2),
             nn.ReLU(),
