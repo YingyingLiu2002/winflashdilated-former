@@ -188,15 +188,14 @@ class AttentionLayerWin(nn.Module):
         self.output_attn = output_attention
         self.dropout = dropout
         self.block_size = block_size
-        self.window_sizes = window_sizes  # 多个窗口大小
+        self.window_sizes = window_sizes  
 
-        # 如果 window_sizes 不为 None，启用多尺度窗口
+       
         if self.window_sizes is not None:
             self.multi_scale = True
             self.logger = logging.getLogger(__name__)
             self.logger.info(f"AttentionLayerWin using multi-scale windows: {self.window_sizes}")
-            # 为每个 window_size 创建独立的投影层（可选）
-            self.scale_weights = nn.Parameter(torch.ones(len(self.window_sizes)))  # 每个尺度的权重
+            self.scale_weights = nn.Parameter(torch.ones(len(self.window_sizes)))  
         else:
             self.multi_scale = False
 
@@ -210,12 +209,9 @@ class AttentionLayerWin(nn.Module):
         values = self.value_projection(values).view(B, S, H, -1)
 
         if self.multi_scale:
-            # 多尺度窗口注意力
             outputs = []
             for window_size in self.window_sizes:
-                # 确保序列长度可以被 window_size 整除
                 if L % window_size != 0 or S % window_size != 0:
-                    # 填充序列长度
                     pad_L = (window_size - L % window_size) % window_size
                     pad_S = (window_size - S % window_size) % window_size
                     queries_padded = F.pad(queries, (0, 0, 0, 0, 0, pad_L))  # (B, L+pad_L, H, D)
@@ -229,8 +225,6 @@ class AttentionLayerWin(nn.Module):
                     values_padded = values
                     L_padded = L
                     S_padded = S
-
-                # 按 window_size 分割
                 queries_win = queries_padded.view(B * (L_padded // window_size), window_size, H, -1)
                 keys_win = keys_padded.view(B * (S_padded // window_size), window_size, H, -1)
                 values_win = values_padded.view(B * (S_padded // window_size), window_size, H, -1)
@@ -246,21 +240,18 @@ class AttentionLayerWin(nn.Module):
                 else:
                     out, _ = self.inner_attention(queries_win, keys_win, values_win, attn_mask)
 
-                # 恢复原始序列长度
                 out = out.view(B, L_padded, H, -1)
                 if L_padded != L:
-                    out = out[:, :L, :, :]  # 截断填充部分
-
+                    out = out[:, :L, :, :]  
                 outputs.append(out)
 
-            # 融合多尺度输出
-            scale_weights = F.softmax(self.scale_weights, dim=0)  # 归一化权重
+
+            scale_weights = F.softmax(self.scale_weights, dim=0)  
             out = torch.zeros_like(outputs[0])
             for i, output in enumerate(outputs):
-                out += scale_weights[i] * output  # 加权平均
+                out += scale_weights[i] * output  
 
         else:
-            # 单尺度窗口（原有逻辑）
             if L % self.window_size != 0 or S % self.window_size != 0:
                 raise ValueError(f"Sequence length {L} or {S} not divisible by window_size {self.window_size}")
 
@@ -326,9 +317,8 @@ class AttentionLayerCrossWin(nn.Module):
         self.output_attn = output_attention
         self.dropout = dropout
         self.block_size = block_size
-        self.window_sizes = window_sizes  # 多个窗口大小
+        self.window_sizes = window_sizes  
 
-        # 如果 window_sizes 不为 None，启用多尺度窗口
         if self.window_sizes is not None:
             self.multi_scale = True
             self.logger = logging.getLogger(__name__)
@@ -347,10 +337,9 @@ class AttentionLayerCrossWin(nn.Module):
         values = self.value_projection(values).view(B, S, H, -1)
 
         if self.multi_scale:
-            # 多尺度窗口注意力
+      
             outputs = []
             for window_size in self.window_sizes:
-                # 确保序列长度可以被 window_size 整除
                 if L % window_size != 0 or S % window_size != 0:
                     pad_L = (window_size - L % window_size) % window_size
                     pad_S = (window_size - S % window_size) % window_size
@@ -365,8 +354,6 @@ class AttentionLayerCrossWin(nn.Module):
                     values_padded = values
                     L_padded = L
                     S_padded = S
-
-                # 按 window_size 分割
                 queries_win = queries_padded.view(B * (L_padded // window_size), L_padded // window_size, H, -1)
                 keys_win = keys_padded.view(B * (S_padded // window_size), S_padded // window_size, H, -1)
                 values_win = values_padded.view(B * (S_padded // window_size), S_padded // window_size, H, -1)
@@ -381,22 +368,15 @@ class AttentionLayerCrossWin(nn.Module):
                     )
                 else:
                     out, _ = self.inner_attention(queries_win, keys_win, values_win, attn_mask)
-
-                # 恢复原始序列长度
                 out = out.view(B, L_padded, H, -1)
                 if L_padded != L:
                     out = out[:, :L, :, :]
-
                 outputs.append(out)
-
-            # 融合多尺度输出
             scale_weights = F.softmax(self.scale_weights, dim=0)
             out = torch.zeros_like(outputs[0])
             for i, output in enumerate(outputs):
                 out += scale_weights[i] * output
-
         else:
-            # 单尺度窗口（原有逻辑）
             if L % self.num_windows != 0 or S % self.num_windows != 0:
                 raise ValueError(f"Sequence length {L} or {S} not divisible by num_windows {self.num_windows}")
 
@@ -440,8 +420,6 @@ class AttentionLayerCrossWin(nn.Module):
                 p2d = (k * window_size, (self.num_windows - (k + 1)) * window_size)
                 attn_tmp = torch.cat((attn_tmp, F.pad(attn[k * window_size:(k + 1) * window_size, :, :, :], p2d)), dim=2)
         return attn_tmp
-
-# FlashAttentionLayer 已经支持 block_size，无需修改
 class FlashAttentionLayer(nn.Module):
     def __init__(self, d_model, n_heads, d_keys=None, d_values=None, dropout=0.1, causal=False, block_size=64):
         super(FlashAttentionLayer, self).__init__()
