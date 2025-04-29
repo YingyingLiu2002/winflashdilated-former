@@ -1,7 +1,5 @@
 import sys
 import os
-
-# 将项目根目录添加到 Python 的模块搜索路径
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 import os
 import numpy as np
@@ -40,8 +38,8 @@ class Dataset_Custom(Dataset):
         self.inverse = inverse
         self.timeenc = timeenc
         self.freq = freq
-        self.cols = cols  # 这里的 self.cols 是初始化时的参数，不是特征列
-        self.root_path = '/root/autodl-tmp/WinFlashDetailed_MultiScale/dataset'
+        self.cols = cols  
+        self.root_path = '/root/dataset'
         self.data_path = data_path
         self.__read_data__()
 
@@ -50,7 +48,7 @@ class Dataset_Custom(Dataset):
         df_raw = pd.read_csv(os.path.join(self.root_path, self.data_path))
         all_cols = list(df_raw.columns)
 
-        # 选择列
+  
         physical_cols = ['Diffuse_Horizontal_Radiation', 'Global_Horizontal_Radiation',
                          'Radiation_Diffuse_Tilted', 'Radiation_Global_Tilted',
                          'Weather_Temperature_Celsius']
@@ -59,7 +57,7 @@ class Dataset_Custom(Dataset):
             cols.remove(self.target)
         self.feature_cols = cols
         df_raw = df_raw[['timestamp'] + cols + [self.target]]
-        # 数据划分
+     
         num_train = int(len(df_raw) * 0.7)
         num_test = int(len(df_raw) * 0.2)
         num_vali = len(df_raw) - num_train - num_test
@@ -68,11 +66,11 @@ class Dataset_Custom(Dataset):
         border1 = border1s[self.set_type]
         border2 = border2s[self.set_type]
 
-        # 数据划分和缩放
+      
         if self.scale:
             print("⚠ WARNING: Data is already scaled in preprocessing, skipping additional scaling.")
-            data_x = df_raw[cols].values.astype(np.float32)  # 转换为 float32
-            data_y = df_raw[[self.target]].values.astype(np.float32)  # 转换为 float32
+            data_x = df_raw[cols].values.astype(np.float32)  
+            data_y = df_raw[[self.target]].values.astype(np.float32)  
         else:
             self.scaler.fit(df_raw[cols].values)
             data_x = self.scaler.transform(df_raw[cols].values).astype(np.float32)
@@ -119,7 +117,7 @@ class Dataset_Custom(Dataset):
         seq_x_mark = self.data_stamp[s_begin:s_end]
         seq_y_mark = self.data_stamp[r_begin:r_end]
 
-        # 验证维度
+    
         if seq_x.shape[1] != len(self.feature_cols):
             raise ValueError(f"Expected seq_x to have {len(self.feature_cols)} channels, but got {seq_x.shape[1]}")
         if seq_y.shape[1] != 1:
@@ -137,7 +135,6 @@ class Dataset_Custom(Dataset):
         if np.isnan(seq_y_mark).any() or np.isinf(seq_y_mark).any():
             print(f"Warning: seq_y_mark at index {index} contains NaN or Inf!")
 
-        # 转换为 torch.FloatTensor（float32）
         return (torch.FloatTensor(seq_x),
                 torch.FloatTensor(seq_y),
                 torch.FloatTensor(seq_x_mark),
@@ -153,14 +150,14 @@ class Dataset_Custom(Dataset):
 
 class Dataset_Pred(Dataset):
     def __init__(self, root_path, flag='pred', size=None,
-                 features='MS', data_path='32CanadianSolar_processed.csv',  # 更新为预处理后的数据集
+                 features='MS', data_path='processed.csv',  
                  target='Active_Power', scale=True, inverse=False, timeenc=0, freq='5min', cols=None):
         # size [seq_len, label_len, pred_len]
         # info
         if size == None:
-            self.seq_len = 24 * 12  # 默认 24 小时 * 12 个 5 分钟间隔 = 288 个时间步
-            self.label_len = 12 * 12  # 默认 12 小时 * 12 个 5 分钟间隔 = 144 个时间步
-            self.pred_len = 12 * 12  # 默认预测 12 小时 = 144 个时间步
+            self.seq_len = 24 * 12  
+            self.label_len = 12 * 12 
+            self.pred_len = 12 * 12  
         else:
             self.seq_len = size[0]
             self.label_len = size[1]
@@ -183,7 +180,7 @@ class Dataset_Pred(Dataset):
         self.scaler = StandardScaler()
         df_raw = pd.read_csv(os.path.join(self.root_path, self.data_path))
 
-        # ✅ 只选择输入特征，不包括 `timestamp` 和 `self.target`
+      
         if self.cols:
             cols = self.cols.copy()
         else:
@@ -194,8 +191,7 @@ class Dataset_Pred(Dataset):
         border1 = len(df_raw) - self.seq_len
         border2 = len(df_raw)
 
-        # ✅ 确保 `data_x` 只有 5 个通道，而 `time_features` 只用于 `data_stamp`
-        df_data = df_raw[cols]  # ✅ 只选取 `self.cols` 指定的特征列
+      
 
         if self.scale:
             self.scaler.fit(df_data.values)
@@ -215,8 +211,8 @@ class Dataset_Pred(Dataset):
         print(f"Generated time features shape: {data_stamp.shape}")
         print(f"First few rows of generated time features:\n{data_stamp[:5]}")
 
-        self.data_x = data[border1:border2]  # ✅ 现在 `data_x` 只有 `5` 个通道
-        self.data_stamp = data_stamp  # ✅ `data_stamp` 只有时间特征
+        self.data_x = data[border1:border2] 
+        self.data_stamp = data_stamp 
 
         if self.inverse:
             self.data_y = df_raw[[self.target]].values[border1:border2]
